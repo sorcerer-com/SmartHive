@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-import sqlite3
 from flask import *
 
 from libs.Logger import *
+from libs.Connection import *
 
-databaseFile = "bin/data.db"
+Connection.DatabaseFile = "bin/data.db"
 
 logging.getLogger().info("")
 app = Flask(__name__, template_folder = "./")
@@ -17,11 +17,11 @@ def index():
 @app.route("/lastSensorId")
 def lastSensorId():
 	id = 0
-	row = read("SELECT MAX(SensorId) FROM data").fetchone()
-	if row != None and row[0] != None:
-		id = row[0]
-	return str(id)
-	
+	with Connection() as conn:
+		row = conn.read("SELECT MAX(SensorId) FROM data").fetchone()
+		if row != None and row[0] != None:
+			id = row[0]
+	return str(id)	
 	
 @app.route("/restart")
 def restart():
@@ -29,12 +29,6 @@ def restart():
 	if func is not None:
 		func()
 	return redirect("/")
-
-
-def read(sql):
-	conn = sqlite3.connect(databaseFile)
-	curs = conn.cursor()
-	return curs.execute(sql)
 	
 
 if __name__ == "__main__":
