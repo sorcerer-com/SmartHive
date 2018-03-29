@@ -1,1 +1,66 @@
-Test
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Smart Hive</title>
+		<meta name='viewport' content='initial-scale=1.0, width=device-width'/>
+	</head>
+
+	<body>
+		<script>
+			function request(method, url, func, postData) {
+				if (!window.XMLHttpRequest)
+					return;
+					
+				var xhttp = new XMLHttpRequest();
+				xhttp.timeout = 4000; // Set timeout to 4 seconds (4000 milliseconds)
+				xhttp.onreadystatechange = func;
+				xhttp.open(method, url, true);
+				xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+				xhttp.send(postData);
+			}
+			
+			// refresh when something get changed
+			var current = ""
+			function onTimer() {
+				request("GET", location.href, function() { 
+					if (this.readyState == 4 && this.status == 200) {
+						if (current != "" && current != this.responseText)
+							location.reload();
+						else if (current == "") {
+							current = this.responseText;
+							setTimeout(onTimer, 1000);
+						}
+						else
+							setTimeout(onTimer, 3000);
+					}
+					else if (this.readyState == 4 && this.status == 0)
+						setTimeout(onTimer, 1000);
+				})
+			}
+			
+			onTimer();
+		</script>
+		
+		<center><h1>Smart Hive</h1></center>
+		
+		<table style="width:100%">
+			<tr>
+				<th>SensorId</th>
+				<th>DateTime</th>
+				<th>Value</th>
+			</tr>
+			{% for sensorId in data.keys()|sort %}
+				<tr><th></th><tr/>
+				{% for dateTime in data[sensorId].keys()|sort %}
+				<tr>
+					<th>{{ sensorId }}</th>
+					<th>{{ dateTime }}</th>
+					{% for (type, value) in data[sensorId][dateTime].iteritems() %}
+						<th>{{ type }}: {{ value }}</th>
+					{% endfor %}
+				</tr>
+				{% endfor %}
+			{% endfor %}
+		</table>
+	</body>
+</html>
