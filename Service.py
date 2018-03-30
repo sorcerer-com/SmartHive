@@ -55,12 +55,12 @@ def AddData(sensorId):
 				"ORDER BY datetime(DateTime) DESC LIMIT(1)" \
 				% (int(sensorId), data["type"], dt)).fetchone()
 				
-			if prevValue != None and float(prevValue[0]) != float(data["value"]):
+			if prevValue == None or float(prevValue[0]) != float(data["value"]):
 				conn.execute("INSERT INTO data(SensorId, DateTime, Type, Value) VALUES(?, ?, ?, ?)", \
 					int(sensorId), dt, str(data["type"]), float(data["value"]))
 				conn.commit()
 
-	return redirect("/")
+	return "OK"
 	
 @app.route("/restart")
 def restart():
