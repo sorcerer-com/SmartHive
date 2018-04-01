@@ -51,7 +51,7 @@
 			</tr>
 			{% for sensorId in data.keys()|sort %}
 				<tr><th></th><tr/>
-				{% for dateTime in data[sensorId].keys()|sort %}
+				{% for dateTime in data[sensorId].keys()|sort|reverse %}
 				<tr>
 					<th>{{ sensorId }}</th>
 					<th>{{ dateTime }}</th>
