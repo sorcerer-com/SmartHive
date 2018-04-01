@@ -9,20 +9,22 @@ Connection.DatabaseFile = "bin/data.db"
 
 logging.getLogger().info("")
 app = Flask(__name__, template_folder = "./")
+
 table = None
+dataThresholds = { "Temperature": 0.5, "Humidity": 5.0, "Weight": 50 }
 
 # TODO: USB connect to Orangepi -> transfer data
 # TODO: USB auto-update
 # TODO: win app to read the usb data
-# TODO: values percision?
+# TODO: backup database
 @app.route("/")
 def index():
 	global table
 	if table == None:
 		with Connection() as conn:
-			dt = datetime.now() - timedelta(days=10)
+			dt = datetime.now() - timedelta(days=1)
 			values = conn.execute(
-				"SELECT SensorId, DateTime, Type, Value FROM data "
+				"SELECT DateTime, mac.Id, Type, Value FROM data JOIN MACs mac ON SensorMAC = MAC "
 				"WHERE datetime(DateTime) > datetime('%s')" % dt).fetchall()
 		
 		table = {}
@@ -33,12 +35,12 @@ def index():
 				table[value[0]][value[1]] = {}
 			if value[2] not in table[value[0]][value[1]]:
 				table[value[0]][value[1]][value[2]] = {}
-			table[value[0]][value[1]][value[2]] = value[3]
+			table[value[0]][value[1]][value[2]] = value[3] # time / (id / (type / value))
 	
 	return render_template("index.html", data=table)
 
-@app.route("/AddData/<sensorId>", methods=["GET", "POST"])
-def AddData(sensorId):
+@app.route("/AddData/<sensorMAC>", methods=["GET", "POST"])
+def AddData(sensorMAC):
 	global table
 	data = request.form if request.method == "POST" else request.args
 	if ("type" in data) and ("value" in data):
@@ -49,15 +51,20 @@ def AddData(sensorId):
 		with Connection() as conn:
 			prevValue = conn.execute(
 				"SELECT Value FROM data " 
-				"WHERE SensorId = '%s' AND Type LIKE '%s' AND datetime(DateTime) < datetime('%s') "
+				"WHERE SensorMAC = '%s' AND Type LIKE '%s' AND datetime(DateTime) < datetime('%s') "
 				"ORDER BY datetime(DateTime) DESC LIMIT(1)" \
-				% (sensorId, data["type"], dt)).fetchone()
+				% (sensorMAC, data["type"], dt)).fetchone()
 				
-			if prevValue == None or float(prevValue[0]) != float(data["value"]):
-				conn.execute("INSERT INTO data(SensorId, DateTime, Type, Value) VALUES(?, ?, ?, ?)", \
-					sensorId, dt, str(data["type"]), float(data["value"]))
+			if prevValue == None or prevValue[0] == None or \
+				abs(float(prevValue[0]) - float(data["value"])) > dataThresholds[data["type"]]:
+				# insert mac if isn't already there
+				conn.execute("INSERT INTO MACs(MAC) "
+					"SELECT ? WHERE NOT EXISTS (SELECT MAC FROM MACs WHERE MAC = ?)", sensorMAC, sensorMAC)
+				# insert data
+				conn.execute("INSERT INTO data(SensorMAC, DateTime, Type, Value) VALUES(?, ?, ?, ?)", \
+					sensorMAC, dt, str(data["type"]), float(data["value"]))
 				conn.commit()
-				table = None # cache data for index page
+				table = None # clear cached data for index page
 
 	return "OK"
 	
@@ -67,6 +74,9 @@ def GetSleepTime():
 	
 @app.route("/restart")
 def restart():
+	global table
+	table = None # clear cached data for index page
+	
 	func = request.environ.get('werkzeug.server.shutdown')
 	if func is not None:
 		func()
