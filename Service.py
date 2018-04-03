@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 from flask import *
 from datetime import datetime, timedelta
+from shutil import copyfile
 
 from libs.Logger import *
 from libs.Connection import *
+import USBHandler
 
 Connection.DatabaseFile = "bin/data.db"
 
@@ -11,12 +13,10 @@ logging.getLogger().info("")
 app = Flask(__name__, template_folder = "./")
 
 table = None
-dataThresholds = { "Temperature": 0.5, "Humidity": 5.0, "Weight": 50 }
+dataThresholds = { "Temperature": 0.5, "Humidity": 5.0, "Weight": 10 }
 
-# TODO: USB connect to Orangepi -> transfer data
-# TODO: USB auto-update
+# TODO: maybe add python file to execute in the flash drive
 # TODO: win app to read the usb data
-# TODO: backup database
 @app.route("/")
 def index():
 	global table
@@ -44,10 +44,13 @@ def AddData(sensorMAC):
 	global table
 	data = request.form if request.method == "POST" else request.args
 	if ("type" in data) and ("value" in data):
+		# backup data
+		copyfile(Connection.DatabaseFile, Connection.DatabaseFile + ".bak")
+		
 		dt = datetime.now().replace(second=0, microsecond=0)
 		if "deltatime" in data:
 			dt -= timedelta(minutes=float(data["deltatime"]))
-			
+		
 		with Connection() as conn:
 			prevValue = conn.execute(
 				"SELECT Value FROM data " 
@@ -74,9 +77,7 @@ def GetSleepTime():
 	
 @app.route("/restart")
 def restart():
-	global table
-	table = None # clear cached data for index page
-	
+	USBHandler.deinit()
 	func = request.environ.get('werkzeug.server.shutdown')
 	if func is not None:
 		func()
@@ -86,5 +87,6 @@ def restart():
 if __name__ == "__main__":
 	Logger.log("info", "Start Smart Hive")
 	
-	app.config['TEMPLATES_AUTO_RELOAD']=True
+	USBHandler.init()
+	app.config['TEMPLATES_AUTO_RELOAD'] = True
 	app.run(debug=False, host="0.0.0.0")
