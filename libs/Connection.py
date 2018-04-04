@@ -12,7 +12,7 @@ class Connection:
 		
 	def __enter__(self):
 		if Connection.DatabaseFile != None:
-			Connection.debug("Connect to: " + Connection.DatabaseFile)
+			Connection.debug("Connect to " + Connection.DatabaseFile)
 			self.conn = sqlite3.connect(Connection.DatabaseFile, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
 			self.curs = self.conn.cursor()
 		return self
@@ -22,7 +22,7 @@ class Connection:
 		self.conn.close()
 		
 	def execute(self, sql, *args):
-		Connection.debug("Execute: " + sql + str(args))
+		Connection.debug("Execute - " + sql + str(args))
 		return self.curs.execute(sql, args)
 		
 	def commit(self):
@@ -33,6 +33,6 @@ class Connection:
 	@staticmethod
 	def debug(text):
 		if Connection.Debug:
-			Logger.log("info", "Connection - " + text)
+			Logger.log("info", "Connection: " + text)
 		else:
-			Logger.log("debug", "Connection - " + text)
+			Logger.log("debug", "Connection: " + text)

@@ -13,10 +13,8 @@ logging.getLogger().info("")
 app = Flask(__name__, template_folder = "./")
 
 table = None
-dataThresholds = { "Temperature": 0.5, "Humidity": 5.0, "Weight": 10 }
+dataThresholds = { "Temperature": 0.2, "Humidity": 5.0, "Weight": 10 }
 
-# TODO: maybe add python file to execute in the flash drive
-# TODO: win app to read the usb data
 @app.route("/")
 def index():
 	global table
@@ -90,3 +88,4 @@ if __name__ == "__main__":
 	USBHandler.init()
 	app.config['TEMPLATES_AUTO_RELOAD'] = True
 	app.run(debug=False, host="0.0.0.0")
+	USBHandler.deinit()
