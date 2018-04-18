@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 from threading import Thread, Timer
-import os, subprocess
+import os, subprocess, thread
 from shutil import copyfile, copy
-import thread
+from datetime import datetime, timedelta
 
 from libs.Logger import *
 from libs.Connection import *
@@ -13,6 +13,7 @@ delay = 1
 
 baseDir = "/media/usb/"
 checked = False
+cleanupInterval = 365 # days
 
 # sudo apt-get install usbmount 
 # FS_MOUNTOPTIONS="-fstype=vfat,umask=0000"
@@ -47,6 +48,7 @@ def run():
 					copyfiles(fullPath)
 					execute(os.path.join(fullPath, "exec.py"))
 					update(os.path.join(fullPath, "update"))
+					cleanupDB()
 					Logger.log("info", "USBHandler: Done")
 						
 		elif len(list) == 0:
@@ -58,7 +60,8 @@ def exportDB(filePath):
 		Logger.log("info", "USBHandler: Export database")
 		with Connection() as conn:
 			values = conn.execute(
-				"SELECT DateTime, mac.Id, mac.MAC, Type, Value FROM data JOIN MACs mac ON SensorMAC = MAC "
+				"SELECT DateTime, mac.Id, mac.MAC, Type, Value, mac.LastActivity FROM data "
+				"JOIN MACs mac ON SensorMAC = MAC "
 				"ORDER BY datetime(DateTime)").fetchall()
 		
 		with open(filePath, "w") as file:
@@ -79,7 +82,7 @@ def copyfiles(dstPath):
 
 		for fileName in files:
 			filePath = os.path.join(srcPath, fileName)
-			if (os.path.isfile(filePath)):
+			if os.path.isfile(filePath) and os.path.splitext(fileName)[1] != ".bak":
 				Logger.log("info", "USBHandler: - Copying " + fileName)
 				copyfile(filePath, os.path.join(dstPath, fileName))
 	except Exception as e:
@@ -115,6 +118,17 @@ def update(srcPath):
 				os.remove(filePath)
 		
 		thread.interrupt_main()
+	except Exception as e:
+		Logger.log("error", "USBHandler: Exception handled")
+		Logger.log("exception", str(e))
+		
+def cleanupDB():
+	try:
+		Logger.log("info", "USBHandler: Cleanup database")
+		dt = datetime.now() - timedelta(days=cleanupInterval)
+		with Connection() as conn:
+			conn.execute("DELETE FROM data WHERE datetime(DateTime) < datetime('%s')" % dt).fetchall()
+			conn.commit()
 	except Exception as e:
 		Logger.log("error", "USBHandler: Exception handled")
 		Logger.log("exception", str(e))

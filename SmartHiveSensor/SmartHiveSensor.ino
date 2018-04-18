@@ -10,7 +10,7 @@ const char* serverAddress = "192.168.0.110:5000";
 
 const int ledPin = D4;
 const int threshold = 5; // seconds to wait for operation
-const long scaleOffset = 185700; // initial offset of the scale
+const long scaleOffset = 182000; // initial offset of the scale
 const float scaleScale = -24; // unit scale of the scale
 const uint64_t defaultSleepTime = 15 * 60e6; // 15 minutes
 
@@ -124,7 +124,7 @@ void sendData()
   sendData(client, addDataURL, "Temperature", temp);
   sendData(client, addDataURL, "Humidity", hum);
   sendData(client, addDataURL, "Weight", weight);
-    
+  
   Serial.println("Done");
   Serial.println();
 }
@@ -143,7 +143,7 @@ void sendData(HTTPClient& client, const String& addDataURL, const char* type, co
 void sleep()
 {
   uint64_t sleepTime = defaultSleepTime;
-  Serial.print("Receiving sleep time... ");
+  Serial.print("Receiving sleep time...");
 
   HTTPClient client;
   client.begin(String("http://") + serverAddress + "/GetSleepTime");

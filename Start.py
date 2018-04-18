@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import subprocess, signal, time, sys, os
 from datetime import datetime, timedelta
+import mechanize
 
 from libs.Logger import *
 
@@ -59,6 +60,21 @@ while True:
 			if (proc is None) or (proc.poll() is not None):
 				break
 			
+			# try open page 3 times
+			kill = True
+			for i in range(0, 3):
+				try:
+					br = mechanize.Browser()
+					br.set_handle_robots(False)
+					br.open_novisit("http://localhost:5000", timeout=30)
+					kill = False
+					break
+				except Exception as e:
+					Logger.log("debug", str(e))
+					time.sleep(30)
+			if kill:
+				Logger.log("error", "Cannot open the web page restart My Home")
+				break			
 		print ""
 	except (KeyboardInterrupt, SystemExit) as e:
 		killProc()

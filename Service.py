@@ -42,6 +42,7 @@ def AddData(sensorMAC):
 	global table
 	data = request.form if request.method == "POST" else request.args
 	if ("type" in data) and ("value" in data):
+		Logger.log("info", "Receiving data %s: %s" % (data["type"], data["value"]))
 		# backup data
 		copyfile(Connection.DatabaseFile, Connection.DatabaseFile + ".bak")
 		
@@ -56,8 +57,13 @@ def AddData(sensorMAC):
 				"ORDER BY datetime(DateTime) DESC LIMIT(1)" \
 				% (sensorMAC, data["type"], dt)).fetchone()
 				
+			conn.execute("UPDATE MACs SET LastActivity = ? WHERE MAC = ?", \
+				datetime.now().replace(second=0, microsecond=0), sensorMAC)
+			conn.commit()
+					
+			threshold = dataThresholds[data["type"]] if data["type"] in dataThresholds else 0.01
 			if prevValue == None or prevValue[0] == None or \
-				abs(float(prevValue[0]) - float(data["value"])) > dataThresholds[data["type"]]:
+				abs(float(prevValue[0]) - float(data["value"])) > threshold:	
 				# insert mac if isn't already there
 				conn.execute("INSERT INTO MACs(MAC) "
 					"SELECT ? WHERE NOT EXISTS (SELECT MAC FROM MACs WHERE MAC = ?)", sensorMAC, sensorMAC)
