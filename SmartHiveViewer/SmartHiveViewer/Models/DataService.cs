@@ -14,13 +14,9 @@ namespace SmartHiveViewer.Models
         {
             bool readSuccessful = false;
 
-            var driveInfos = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Removable);
-            foreach (var driveInfo in driveInfos)
+            var dirs = InstallUtil.GetRemovableDrives();
+            foreach (var dir in dirs)
             {
-                var dir = driveInfo.RootDirectory.GetDirectories("SmartHive").SingleOrDefault();
-                if (dir == null)
-                    continue;
-
                 var csvFilePath = dir.GetFiles("data.csv").SingleOrDefault();
                 if (csvFilePath == null)
                     continue;
@@ -43,7 +39,7 @@ namespace SmartHiveViewer.Models
             try
             {
                 var filePath = Path.Combine(Environment.GetFolderPath(
-                    Environment.SpecialFolder.ApplicationData), "SmartHiveData.csv");
+                    Environment.SpecialFolder.ApplicationData), "SmartHive", "SmartHiveData.csv");
 
                 if (!File.Exists(filePath))
                     return true;
@@ -65,7 +61,7 @@ namespace SmartHiveViewer.Models
             try
             {
                 var filePath = Path.Combine(Environment.GetFolderPath(
-                    Environment.SpecialFolder.ApplicationData), "SmartHiveData.csv");
+                    Environment.SpecialFolder.ApplicationData), "SmartHive", "SmartHiveData.csv");
 
                 if (File.Exists(filePath))
                     File.Copy(filePath, filePath + ".bak", true);

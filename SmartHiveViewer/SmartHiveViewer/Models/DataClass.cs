@@ -27,7 +27,7 @@ namespace SmartHiveViewer.Models
 
         public string ToCSVLine()
         {
-            return $"{Timestamp},{SensorId},{SensorMAC},{Type},{Value.ToString(CultureInfo.InvariantCulture)}";
+            return $"{Timestamp},{SensorId},{SensorMAC},{Type},{Value.ToString(CultureInfo.InvariantCulture)},{LastActivity}";
         }
 
 

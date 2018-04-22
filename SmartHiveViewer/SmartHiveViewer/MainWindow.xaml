@@ -14,6 +14,12 @@
                    HorizontalAlignment="Center" 
                    VerticalAlignment="Center"/>
 
+        <TextBlock x:Name="versionTextBlock"
+                   Text="version"
+                   Margin="5 3"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Top"/>
+
         <TabControl x:Name="tabControl" 
                     Background="LightGray"
                     FontSize="20"

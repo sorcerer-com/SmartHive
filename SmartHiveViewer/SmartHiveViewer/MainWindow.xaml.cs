@@ -27,8 +27,11 @@ namespace SmartHiveViewer
 
         private async void MainWindow_LoadedAsync(object sender, RoutedEventArgs e)
         {
+            versionTextBlock.Text = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
+
             await Task.Run(() =>
             {
+                InstallUtil.Install();
                 if (!DataService.ImportData())
                 {
                     MessageBox.Show("Данните не могат да бъдат разчетени!", "Cannot Import Data",

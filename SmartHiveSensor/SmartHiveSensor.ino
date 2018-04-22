@@ -10,7 +10,7 @@ const char* serverAddress = "192.168.0.110:5000";
 
 const int ledPin = D4;
 const int threshold = 5; // seconds to wait for operation
-const long scaleOffset = 182000; // initial offset of the scale
+const long scaleOffset = 187000; // initial offset of the scale
 const float scaleScale = -24; // unit scale of the scale
 const uint64_t defaultSleepTime = 15 * 60e6; // 15 minutes
 
