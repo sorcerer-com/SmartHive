@@ -135,12 +135,13 @@ namespace SmartHiveViewer
             var values = DataService.GetData(sensorId, type);
             var dayValuesCount = values
                 .Where(v => v.Key < values.Keys.Max().Subtract(TimeSpan.FromDays(1))).Count();
+            var weekValuesCount = values
+                .Where(v => v.Key < values.Keys.Max().Subtract(TimeSpan.FromDays(7))).Count();
 
             var axisX = new Axis()
             {
                 Labels = values.Keys.OrderBy(k => k).Select(k => k.ToString()).ToList(),
-                MinValue = dayValuesCount,
-                Tag = dayValuesCount
+                MinValue = dayValuesCount
             };
 
             var lineSeries = new LineSeries
@@ -162,9 +163,11 @@ namespace SmartHiveViewer
             chart.MouseDoubleClick += (_, e) =>
             {
                 if (e.LeftButton == MouseButtonState.Pressed)
-                    chart.AxisX[0].MinValue = double.NaN;
+                    chart.AxisX[0].MinValue = weekValuesCount;
+                else if (e.RightButton == MouseButtonState.Pressed)
+                    chart.AxisX[0].MinValue = dayValuesCount;
                 else
-                    chart.AxisX[0].MinValue = (int)chart.AxisX[0].Tag;
+                    chart.AxisX[0].MinValue = double.NaN;
                 chart.AxisX[0].MaxValue = double.NaN;
             };
 

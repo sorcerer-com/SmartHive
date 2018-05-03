@@ -96,7 +96,8 @@ namespace SmartHiveViewer.Models
             var result = Data
                 .Where(d => d.SensorId == sensorId && d.Type.ToLower() == type.ToLower())
                 .OrderBy(d => d.Timestamp)
-                .Distinct()
+                .GroupBy(d => d.Timestamp)
+                .Select(g => g.First())
                 .ToDictionary(d => d.Timestamp, d => d.Value);
 
             var times = Data.Select(d => d.Timestamp).Distinct().OrderBy(d => d).ToList();
