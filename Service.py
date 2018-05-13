@@ -14,6 +14,7 @@ app = Flask(__name__, template_folder = "./")
 
 table = None
 dataThresholds = { "Temperature": 0.2, "Humidity": 5.0, "Weight": 10 }
+sleepTime = 15 # minutes
 
 @app.route("/")
 def index():
@@ -77,7 +78,7 @@ def AddData(sensorMAC):
 	
 @app.route("/GetSleepTime")
 def GetSleepTime():
-	return str(15 * 60) # in seconds
+	return str(sleepTime * 60) # to seconds
 	
 @app.route("/restart")
 def restart():

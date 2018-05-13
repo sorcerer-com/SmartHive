@@ -12,11 +12,12 @@ const int ledPin = D4;
 const int threshold = 10; // seconds to wait for operation
 const long scaleOffset = 187000; // initial offset of the scale
 const float scaleScale = -24; // unit scale of the scale
-const uint64_t defaultSleepTime = 15 * 60e6; // 15 minutes
+const uint64_t defaultSleepTime = 60 * 60e6; // 60 minutes
 
 DHT dht(D5, DHT22);
 HX711 scale(D2, D3);
 
+unsigned long startTime = millis();
 float temp = 0.0f;
 float hum = 0.0f;
 float weight = 0.0f;
@@ -36,7 +37,7 @@ void setup()
   // Connect to WiFi and send data to server
   if (connect())
     sendData();
-  
+
   sleep();
 }
 
@@ -54,6 +55,11 @@ void loop()
 
 void readData()
 {
+  // Turn off the wifi until read the data
+  WiFi.mode(WIFI_OFF);
+  WiFi.forceSleepBegin();
+  delay(1);
+
   Serial.print("Reading data..");
   int count = 0;
   do
@@ -73,10 +79,11 @@ void readData()
     }
   } while (isnan(temp) || isnan(hum));
   Serial.println("");
-  
+
   scale.set_offset(scaleOffset);
   scale.set_scale(scaleScale);
   weight = scale.get_units(10);
+
   Serial.print("Temperature: ");
   Serial.print(temp);
   Serial.print(", Humidity: ");
@@ -84,13 +91,19 @@ void readData()
   Serial.print(", Weight: ");
   Serial.println(weight);
   Serial.println();
+
+  // Turn on the wifi again
+  WiFi.forceSleepWake();
+  delay(1);
+  WiFi.mode(WIFI_STA);
 }
 
 bool connect()
 {
   Serial.print("Conecting...");
+  WiFi.persistent( false );
   WiFi.begin(ssid, password);
-  
+
   // Wait for connection
   int count = 0;
   while (WiFi.status() != WL_CONNECTED)
@@ -106,7 +119,7 @@ bool connect()
     }
   }
   Serial.println();
-  
+
   Serial.print("Connected to ");
   Serial.println(ssid);
   Serial.print("IP address: ");
@@ -124,7 +137,7 @@ void sendData()
   sendData(client, addDataURL, "Temperature", temp);
   sendData(client, addDataURL, "Humidity", hum);
   sendData(client, addDataURL, "Weight", weight);
-  
+
   Serial.println("Done");
   Serial.println();
 }
@@ -132,35 +145,47 @@ void sendData()
 void sendData(HTTPClient& client, const String& addDataURL, const char* type, const float& value)
 {
   Serial.print(String("- ") + type);
-  client.begin(addDataURL + "?type=" + type + "&value=" + value);
   Serial.print(" ");
+
+  client.begin(addDataURL + "?type=" + type + "&value=" + value);
+  client.end();
+
   Serial.print(client.GET());
   Serial.print(" ");
   Serial.println(client.getString());
-  client.end();
 }
 
 void sleep()
 {
   uint64_t sleepTime = defaultSleepTime;
-  Serial.print("Receiving sleep time...");
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    Serial.print("Receiving sleep time...");
 
-  HTTPClient client;
-  client.begin(String("http://") + serverAddress + "/GetSleepTime");
-  Serial.print(" ");
-  Serial.print(client.GET());
-  Serial.print(" ");
-  Serial.print(client.getString());
-  Serial.println(" seconds");
-  if (client.GET() == 200)
-    sleepTime = (uint64_t)client.getString().toInt() * 1e6; // in seconds
-  client.end();
-  
-  WiFi.disconnect();
-  
+    HTTPClient client;
+    client.begin(String("http://") + serverAddress + "/GetSleepTime");
+    Serial.print(" ");
+    Serial.print(client.GET());
+    Serial.print(" ");
+    Serial.print(client.getString());
+    Serial.println(" seconds");
+    if (client.GET() == 200)
+      sleepTime = (uint64_t)client.getString().toInt() * 1e6; // in seconds
+    client.end();
+
+    WiFi.disconnect(true);
+  }
+
   Serial.print("Sleep for ");
   Serial.print((int)(sleepTime / 1e6));
   Serial.println(" seconds");
-  ESP.deepSleep(sleepTime); // 30 seconds
+  Serial.println(" ");
+
+  Serial.print("Execution time ");
+  Serial.print((float)(millis() - startTime) / 1000);
+  Serial.println(" seconds");
+
+  delay(1);
+  ESP.deepSleep(sleepTime, WAKE_RF_DEFAULT);
 }
 
