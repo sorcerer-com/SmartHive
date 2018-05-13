@@ -3,6 +3,7 @@
 
 #include "src/DHT.h"
 #include "src/HX711.h"
+#include "DataSaver.h"
 
 const char* ssid = "ARMBIAN";
 const char* password = "12345678";
@@ -10,19 +11,18 @@ const char* serverAddress = "192.168.0.110:5000";
 
 const int ledPin = D4;
 const int threshold = 10; // seconds to wait for operation
+const int dataCount = 3; // data variables count
+const int savesBeforeSend = 4; // save 4 times before send
+const uint64_t defaultSleepTime = 15 * 60e6; // 15 minutes default deep sleep
+
 const long scaleOffset = 187000; // initial offset of the scale
 const float scaleScale = -24; // unit scale of the scale
-const uint64_t defaultSleepTime = 60 * 60e6; // 60 minutes
 
 DHT dht(D5, DHT22);
 HX711 scale(D2, D3);
 
 unsigned long startTime = millis();
-float temp = 0.0f;
-float hum = 0.0f;
-float weight = 0.0f;
 
-// TODO: backup data in EEPROM if cannot connect or server not respond
 void setup()
 {
   // Setup
@@ -30,13 +30,28 @@ void setup()
   digitalWrite(ledPin, LOW);
 
   Serial.begin(9600);
+  DataSaver.init();
+
+  // Turn off the wifi until read the data
+  WiFi.mode(WIFI_OFF);
+  WiFi.forceSleepBegin();
+  delay(100);
 
   // Read sensors data
   readData();
 
-  // Connect to WiFi and send data to server
-  if (connect())
-    sendData();
+  // Send data but not everytime
+  if (DataSaver.count() % (savesBeforeSend * dataCount) == 1)
+  {
+    // Turn on the wifi again
+    WiFi.forceSleepWake();
+    delay(100);
+    WiFi.mode(WIFI_STA);
+
+    // Connect to WiFi and send data to server
+    if (connect() && sendData())
+      DataSaver.clear(); // if successful clear saves
+  }
 
   sleep();
 }
@@ -55,10 +70,7 @@ void loop()
 
 void readData()
 {
-  // Turn off the wifi until read the data
-  WiFi.mode(WIFI_OFF);
-  WiFi.forceSleepBegin();
-  delay(1);
+  float temp, hum, weight;
 
   Serial.print("Reading data..");
   int count = 0;
@@ -78,7 +90,7 @@ void readData()
       break;
     }
   } while (isnan(temp) || isnan(hum));
-  Serial.println("");
+  Serial.println();
 
   scale.set_offset(scaleOffset);
   scale.set_scale(scaleScale);
@@ -90,12 +102,16 @@ void readData()
   Serial.print(hum);
   Serial.print(", Weight: ");
   Serial.println(weight);
-  Serial.println();
 
-  // Turn on the wifi again
-  WiFi.forceSleepWake();
-  delay(1);
-  WiFi.mode(WIFI_STA);
+  // Save Data
+  Serial.println("Saving data...");
+  DataSaver.save(temp);
+  DataSaver.save(hum);
+  DataSaver.save(weight);
+  
+  Serial.print("SavedData count: ");
+  Serial.println(DataSaver.count());
+  Serial.println();
 }
 
 bool connect()
@@ -128,31 +144,56 @@ bool connect()
   return true;
 }
 
-void sendData()
+bool sendData()
 {
+  bool result = true;
   Serial.println("Sending data...");
 
   HTTPClient client;
   String addDataURL = String("http://") + serverAddress + "/AddData/" + WiFi.macAddress();
-  sendData(client, addDataURL, "Temperature", temp);
-  sendData(client, addDataURL, "Humidity", hum);
-  sendData(client, addDataURL, "Weight", weight);
 
-  Serial.println("Done");
+  int idx = 0;
+  float value = 0;
+  const int count = (DataSaver.count() - 1) / dataCount;
+  for (int i = 0; i < count; i++)
+  {
+    idx = ((DataSaver.count() - 1) / dataCount) - i - 1;
+    Serial.println(String("- ") + idx + " index");
+
+    DataSaver.load(i * dataCount + 1, value);
+    result &= sendData(client, addDataURL, -idx, "Temperature", value);
+    DataSaver.load(i * dataCount + 2, value);
+    result &= sendData(client, addDataURL, -idx, "Humidity", value);
+    DataSaver.load(i * dataCount + 3, value);
+    result &= sendData(client, addDataURL, -idx, "Weight", value);
+
+    if (!result)
+      break;
+    delay(100);
+  }
+
+  if (result)
+    Serial.println("Done");
+  else
+    Serial.println("Failed");
   Serial.println();
+  return result;
 }
 
-void sendData(HTTPClient& client, const String& addDataURL, const char* type, const float& value)
+bool sendData(HTTPClient& client, const String& addDataURL,
+              const int& index, const char* type, const float& value)
 {
-  Serial.print(String("- ") + type);
-  Serial.print(" ");
+  Serial.print(String("- ") + type + " " + value + " ");
 
-  client.begin(addDataURL + "?type=" + type + "&value=" + value);
+  client.begin(addDataURL + "?index=" + index + "&type=" + type + "&value=" + value);
+  int status = client.GET();
+  String content = client.getString();
   client.end();
 
-  Serial.print(client.GET());
+  Serial.print(status);
   Serial.print(" ");
-  Serial.println(client.getString());
+  Serial.println(content);
+  return status == 200 && content == "OK";
 }
 
 void sleep()
@@ -164,28 +205,41 @@ void sleep()
 
     HTTPClient client;
     client.begin(String("http://") + serverAddress + "/GetSleepTime");
-    Serial.print(" ");
-    Serial.print(client.GET());
-    Serial.print(" ");
-    Serial.print(client.getString());
-    Serial.println(" seconds");
-    if (client.GET() == 200)
-      sleepTime = (uint64_t)client.getString().toInt() * 1e6; // in seconds
+    int status = client.GET();
+    String content = client.getString();
     client.end();
 
+    Serial.print(" ");
+    Serial.print(status);
+    Serial.print(" ");
+    Serial.print(content);
+    Serial.println(" seconds");
+    if (status == 200)
+    {
+      sleepTime = (uint64_t)content.toInt() * 1e6; // in seconds
+      DataSaver.save((float)(sleepTime / 1e6));
+    }
+
     WiFi.disconnect(true);
+  }
+  else
+  {
+    float temp;
+    if (DataSaver.load(0, temp))
+      sleepTime = (uint64_t)temp * 1e6; // in seconds
   }
 
   Serial.print("Sleep for ");
   Serial.print((int)(sleepTime / 1e6));
   Serial.println(" seconds");
-  Serial.println(" ");
+  Serial.println();
 
   Serial.print("Execution time ");
   Serial.print((float)(millis() - startTime) / 1000);
   Serial.println(" seconds");
+  Serial.println();
 
   delay(1);
-  ESP.deepSleep(sleepTime, WAKE_RF_DEFAULT);
+  ESP.deepSleep(sleepTime, WAKE_RF_DISABLED);
 }
 

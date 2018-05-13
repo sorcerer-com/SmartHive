@@ -48,8 +48,8 @@ def AddData(sensorMAC):
 		copyfile(Connection.DatabaseFile, Connection.DatabaseFile + ".bak")
 		
 		dt = datetime.now().replace(second=0, microsecond=0)
-		if "deltatime" in data:
-			dt -= timedelta(minutes=float(data["deltatime"]))
+		if "index" in data:
+			dt += timedelta(minutes=int(data["index"])*sleepTime)
 		
 		with Connection() as conn:
 			prevValue = conn.execute(
