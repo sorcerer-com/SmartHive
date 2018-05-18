@@ -110,7 +110,7 @@ void readData()
   DataSaver.save(weight);
   
   Serial.print("SavedData count: ");
-  Serial.println(DataSaver.count());
+  Serial.println(DataSaver.count() / dataCount);
   Serial.println();
 }
 

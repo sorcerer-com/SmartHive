@@ -81,6 +81,11 @@ namespace SmartHiveViewer.Models
 
         public static int SensorsCount => Data.GroupBy(d => d.SensorId).Count();
 
+        public static List<DateTime> Times => Data.Select(d => d.Timestamp).Distinct().OrderBy(t => t).ToList();
+
+        private static Dictionary<string, Dictionary<DateTime, double>> cache = 
+            new Dictionary<string, Dictionary<DateTime, double>>();
+
         public static List<string> GetTypes(int sensorId)
         {
             return Data
@@ -91,31 +96,37 @@ namespace SmartHiveViewer.Models
                 .ToList();
         }
 
-        public static SortedDictionary<DateTime, double> GetData(int sensorId, string type)
+        public static SortedDictionary<DateTime, double> GetData(int sensorId, string type,
+            int minIndex = 0, int count = int.MaxValue)
         {
-            var result = Data
-                .Where(d => d.SensorId == sensorId && d.Type.ToLower() == type.ToLower())
-                .OrderBy(d => d.Timestamp)
-                .GroupBy(d => d.Timestamp)
-                .Select(g => g.First())
-                .ToDictionary(d => d.Timestamp, d => d.Value);
-
-            var times = Data.Select(d => d.Timestamp).Distinct().OrderBy(d => d).ToList();
-            foreach (var time in times)
+            var id = $"{sensorId}.{type}";
+            if (!cache.TryGetValue(id, out var result))
             {
-                if (!result.ContainsKey(time))
-                {
-                    var prevValue = result
-                        .Where(kvp => kvp.Key < time)
-                        .OrderBy(kvp => kvp.Key)
-                        .Select(kvp => kvp.Value);
+                result = Data
+                    .Where(d => d.SensorId == sensorId && d.Type.ToLower() == type.ToLower())
+                    .GroupBy(d => d.Timestamp)
+                    .Select(g => g.First())
+                    .ToDictionary(d => d.Timestamp, d => d.Value);
 
-                    if (prevValue.Count() > 0)
-                        result.Add(time, prevValue.Last());
-                    else
-                        result.Add(time, 0);
+                // fill gaps between values
+                foreach (var time in Times)
+                {
+                    if (!result.ContainsKey(time))
+                    {
+                        var prevValue = result
+                            .Where(kvp => kvp.Key < time)
+                            .OrderBy(kvp => kvp.Key)
+                            .Select(kvp => kvp.Value);
+
+                        if (prevValue.Count() > 0)
+                            result.Add(time, prevValue.Last());
+                        else
+                            result.Add(time, 0);
+                    }
                 }
+                cache.Add(id, result);
             }
+            result = result.OrderBy(kvp => kvp.Key).Skip(minIndex).Take(count).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             return new SortedDictionary<DateTime, double>(result);
         }

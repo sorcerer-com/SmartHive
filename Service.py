@@ -36,7 +36,7 @@ def index():
 				table[value[0]][value[1]][value[2]] = {}
 			table[value[0]][value[1]][value[2]] = value[3] # time / (id / (type / value))
 	
-	return render_template("index.html", data=table)
+	return render_template("index.html", data=table, datetime=datetime.now().strftime("%Y-%m-%d %H:%M"))
 
 @app.route("/AddData/<sensorMAC>", methods=["GET", "POST"])
 def AddData(sensorMAC):
@@ -86,6 +86,14 @@ def restart():
 	func = request.environ.get('werkzeug.server.shutdown')
 	if func is not None:
 		func()
+	return redirect("/")
+	
+@app.route("/setTime")
+def setTime():
+	data = request.form if request.method == "POST" else request.args
+	if "time" in data:
+		Logger.log("info", "Set time received: %s" % data["time"])
+		os.system('sudo date -s @%s' % data["time"])
 	return redirect("/")
 	
 

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SmartHiveViewer"
         mc:Ignorable="d"
-        Title="Smart Hive" Width="800" Height="480"
+        Title="Smart Hive" Width="800" Height="480" WindowState="Maximized"
         Icon="/Images/Icon.png">
     <Grid Background="Gray">
         <TextBlock x:Name="loadingTextBlock"
@@ -17,13 +17,13 @@
         <TextBlock x:Name="versionTextBlock"
                    Text="version"
                    Margin="5 3"
+                   FontSize="16"
                    HorizontalAlignment="Right"
                    VerticalAlignment="Top"/>
 
         <TabControl x:Name="tabControl" 
                     Background="LightGray"
-                    FontSize="20"
-                    FontWeight="Bold"
+                    FontSize="20" FontWeight="Bold"
                     Visibility="Collapsed"/>
     </Grid>
 </Window>
