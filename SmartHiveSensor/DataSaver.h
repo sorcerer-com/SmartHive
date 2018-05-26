@@ -6,7 +6,7 @@
 class DataSaverClass
 {
   private:
-    const int maxCount = 300;
+    const int maxCount = 800;
     int nextFreeSlot;
 
   public:

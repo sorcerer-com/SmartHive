@@ -13,8 +13,8 @@ logging.getLogger().info("")
 app = Flask(__name__, template_folder = "./")
 
 table = None
-dataThresholds = { "Temperature": 0.2, "Humidity": 5.0, "Weight": 10 }
-sleepTime = 15 # minutes
+dataThresholds = { "Temperature": 0.5, "Humidity": 5.0, "Weight": 100 }
+sleepTime = 60 # minutes
 
 @app.route("/")
 def index():

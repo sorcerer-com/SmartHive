@@ -18,7 +18,7 @@ const uint64_t defaultSleepTime = 15 * 60e6; // 15 minutes default deep sleep
 const long scaleOffset = 187000; // initial offset of the scale
 const float scaleScale = -24; // unit scale of the scale
 
-DHT dht(D5, DHT22);
+DHT dht(D4, DHT22);
 HX711 scale(D2, D3);
 
 unsigned long startTime = millis();
@@ -26,8 +26,8 @@ unsigned long startTime = millis();
 void setup()
 {
   // Setup
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, LOW);
+  //pinMode(ledPin, OUTPUT);
+  //digitalWrite(ledPin, LOW);
 
   Serial.begin(9600);
   DataSaver.init();
@@ -117,7 +117,7 @@ void readData()
 bool connect()
 {
   Serial.print("Conecting...");
-  WiFi.persistent( false );
+  WiFi.persistent(false);
   WiFi.begin(ssid, password);
 
   // Wait for connection
@@ -225,8 +225,10 @@ void sleep()
   else
   {
     float temp;
-    if (DataSaver.load(0, temp))
+    if (DataSaver.load(0, temp) && temp > 0)
       sleepTime = (uint64_t)temp * 1e6; // in seconds
+    else if (DataSaver.count() == 0)
+      DataSaver.save((float)(sleepTime / 1e6));
   }
 
   Serial.print("Sleep for ");
