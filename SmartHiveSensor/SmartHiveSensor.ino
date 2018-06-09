@@ -32,6 +32,11 @@ void setup()
   Serial.begin(9600);
   DataSaver.init();
 
+  // Print saved data if D5 is LOW
+  pinMode(D5, INPUT_PULLUP);
+  if (digitalRead(D5) == LOW)
+    DataSaver.print();
+
   // Turn off the wifi until read the data
   WiFi.mode(WIFI_OFF);
   WiFi.forceSleepBegin();
@@ -105,6 +110,8 @@ void readData()
 
   // Save Data
   Serial.println("Saving data...");
+  if (DataSaver.count() == 0) // save default sleep time in first place
+    DataSaver.save(defaultSleepTime);
   DataSaver.save(temp);
   DataSaver.save(hum);
   DataSaver.save(weight);
@@ -217,7 +224,8 @@ void sleep()
     if (status == 200)
     {
       sleepTime = (uint64_t)content.toInt() * 1e6; // in seconds
-      DataSaver.save((float)(sleepTime / 1e6));
+      if (DataSaver.count() == 0)
+        DataSaver.save((float)(sleepTime / 1e6));
     }
 
     WiFi.disconnect(true);

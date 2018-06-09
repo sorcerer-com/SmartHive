@@ -86,6 +86,18 @@ class DataSaverClass
       EEPROM.commit();
       return true;
     }
+
+    void print()
+    {
+      Serial.println("Saved Data:");
+      float value;
+      for (int i = 0; i < count(); i++)
+      {
+        load(i, value);
+        Serial.println(value);
+      }
+      Serial.println();
+    }
 };
 
 #if !defined(NO_GLOBAL_INSTANCES) && !defined(NO_GLOBAL_EEPROM)
