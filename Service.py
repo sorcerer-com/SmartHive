@@ -14,7 +14,8 @@ app = Flask(__name__, template_folder = "./")
 
 table = None
 dataThresholds = { "Temperature": 0.5, "Humidity": 5.0, "Weight": 100 }
-sleepTime = 60 # minutes
+sleepTime = 30 # minutes
+testMode = False
 
 @app.route("/")
 def index():
@@ -23,7 +24,8 @@ def index():
 		with Connection() as conn:
 			dt = datetime.now() - timedelta(days=1)
 			values = conn.execute(
-				"SELECT DateTime, mac.Id, Type, Value FROM data JOIN MACs mac ON SensorMAC = MAC "
+				"SELECT DateTime, mac.Id, Type, Value FROM data "
+				"JOIN MACs mac ON SensorMAC = MAC "
 				"WHERE datetime(DateTime) > datetime('%s')" % dt).fetchall()
 		
 		table = {}
@@ -36,7 +38,8 @@ def index():
 				table[value[0]][value[1]][value[2]] = {}
 			table[value[0]][value[1]][value[2]] = value[3] # time / (id / (type / value))
 	
-	return render_template("index.html", data=table, datetime=datetime.now().strftime("%Y-%m-%d %H:%M"))
+	return render_template("index.html", data=table, datetime=datetime.now().strftime("%Y-%m-%d %H:%M"), 
+		testMode=testMode)
 
 @app.route("/AddData/<sensorMAC>", methods=["GET", "POST"])
 def AddData(sensorMAC):
@@ -44,6 +47,8 @@ def AddData(sensorMAC):
 	data = request.form if request.method == "POST" else request.args
 	if ("type" in data) and ("value" in data):
 		Logger.log("info", "Receiving data %s: %s" % (data["type"], data["value"]))
+		if testMode: # in test mode don't write data
+			return "OK"
 		# backup data
 		copyfile(Connection.DatabaseFile, Connection.DatabaseFile + ".bak")
 		
@@ -94,6 +99,13 @@ def setTime():
 	if "time" in data:
 		Logger.log("info", "Set time received: %s" % data["time"])
 		os.system('sudo date -s @%s' % data["time"])
+	return redirect("/")
+	
+@app.route("/setTestMode")
+def setTestMode():
+	global testMode, sleepTime
+	testMode = not testMode
+	sleepTime = 2 if testMode else 30
 	return redirect("/")
 	
 

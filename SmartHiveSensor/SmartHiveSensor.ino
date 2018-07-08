@@ -46,7 +46,8 @@ void setup()
   readData();
 
   // Send data but not everytime
-  if (DataSaver.count() % (savesBeforeSend * dataCount) == 1)
+  if (DataSaver.count() % (savesBeforeSend * dataCount) == 1 ||
+      DataSaver.full())
   {
     // Turn on the wifi again
     WiFi.forceSleepWake();
@@ -115,7 +116,7 @@ void readData()
   DataSaver.save(temp);
   DataSaver.save(hum);
   DataSaver.save(weight);
-  
+
   Serial.print("SavedData count: ");
   Serial.println(DataSaver.count() / dataCount);
   Serial.println();

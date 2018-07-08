@@ -43,6 +43,14 @@
 		
 		{{ datetime }}
 		<button onclick="location.href = '/setTime?time=' + Date.now() / 1000">Set time</button>
+		<button onclick="location.href = '/setTestMode'">
+		{% if testMode == True %}
+			StopTest
+		{% else %}
+			Test
+		{% endif %}
+		</button>
+		<button onclick="location.href = '/restart'">Restart</button>
 		
 		<center><h1>Smart Hive</h1></center>
 		
