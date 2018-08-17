@@ -6,84 +6,148 @@
 class DataSaverClass
 {
   private:
-    const int maxCount = 800;
-    int nextFreeSlot;
+    const int dataAllocation = 100;
+    const int maxSize = 800;
+
+    struct
+    {
+      int start;
+      int size;
+      int sleepTime; // in seconds
+    } data;
+
+  public:
+    void setSleepTime(const int& value) // in seconds
+    {
+      if (data.sleepTime == value)
+        return;
+
+      data.sleepTime = value;
+      EEPROM.put(0, data);
+      EEPROM.commit();
+
+      /*
+        Serial.print("DataSaver set sleep time:");
+        Serial.println(value);
+        //*/
+    }
+
+    int getSleepTime()
+    {
+      return data.sleepTime;
+    }
 
   public:
     void init()
     {
       EEPROM.begin(4096);
-      nextFreeSlot = 0;
+      data.start = 0;
+      data.size = 0;
+      data.sleepTime = 0;
 
       // if cannot read the EEPROM
       if (EEPROM.getDataPtr() == NULL)
       {
-        nextFreeSlot = -1;
+        data.start = -1;
         return;
       }
 
-      for (int i = 0; i < 4096; i++)
+      // if the start and size are not empty
+      if (EEPROM.read(0) != 255 && EEPROM.read(1) != 255)
+        EEPROM.get(0, data);
+    }
+
+    inline int size()
+    {
+      return data.size;
+    }
+
+    inline bool isInit()
+    {
+      return data.size != -1;
+    }
+
+    inline bool isFull()
+    {
+      return data.size == maxSize;
+    }
+
+    inline boolean isEmpty()
+    {
+      return data.size == 0;
+    }
+
+    bool enqueue(const float& value, const bool& commit = true)
+    {
+      if (data.start == -1)
+        return false;
+
+      // if the queue is full remove item to add the new one
+      if (isFull())
       {
-        if (EEPROM.read(i) == 255)
-        {
-          nextFreeSlot = i;
-          break;
-        }
+        float temp;
+        dequeue(temp);
       }
-    }
 
-    inline int count() const
-    {
-      return nextFreeSlot;
-    }
+      int idx = (data.start + data.size) % maxSize;
+      data.size++;
+      EEPROM.put(0, data);
+      EEPROM.put(dataAllocation + idx * sizeof(value), value);
+      if (commit)
+        EEPROM.commit();
 
-    bool save(const float& value)
-    {
-      if (nextFreeSlot == -1 || nextFreeSlot >= maxCount)
-        return false;
       /*
-        Serial.print("EEPROM Save");
-        Serial.print(" nextFreeSlot: ");
-        Serial.print(nextFreeSlot);
+        Serial.print("DataSaver enqueue");
+        Serial.print(" start: ");
+        Serial.print(data.start);
+        Serial.print(" size: ");
+        Serial.print(data.size);
         Serial.print(" Address: ");
-        Serial.print(maxCount + nextFreeSlot * sizeof(value));
-        Serial.print(" Value: ");
-        Serial.println(value);
-        //*/
-      EEPROM.write(nextFreeSlot, 1);
-      EEPROM.write(nextFreeSlot + 1, 255); // mark next as empty
-      EEPROM.put(maxCount + nextFreeSlot * sizeof(value), value);
-      EEPROM.commit();
-      nextFreeSlot++;
-      return true;
-    }
-
-    bool load(const int& index, float& value) const
-    {
-      if (nextFreeSlot == -1 || index >= nextFreeSlot)
-        return false;
-
-      EEPROM.get(maxCount + index * sizeof(value), value);
-      /*
-        Serial.print("EEPROM Load");
-        Serial.print(" index: ");
-        Serial.print(index);
-        Serial.print(" Address: ");
-        Serial.print(maxCount + index * sizeof(value));
+        Serial.print(dataAllocation + idx * sizeof(value));
         Serial.print(" Value: ");
         Serial.println(value);
         //*/
       return true;
     }
 
-    bool clear()
+    bool dequeue(float& value, const bool& commit = true)
     {
-      if (nextFreeSlot == -1)
+      if (data.start == -1 || isEmpty())
         return false;
 
-      nextFreeSlot = 0;
-      EEPROM.write(nextFreeSlot, 255);
+      EEPROM.get(dataAllocation + data.start * sizeof(value), value);
+      data.start = (data.start + 1) % maxSize;
+      data.size--;
+      EEPROM.put(0, data);
+      if (commit)
+        EEPROM.commit();
+
+      /*
+        Serial.print("DataSaver dequeue");
+        Serial.print(" start: ");
+        Serial.print(data.start);
+        Serial.print(" size: ");
+        Serial.print(data.size);
+        Serial.print(" Address: ");
+        Serial.print(dataAllocation + data.start * sizeof(value));
+        Serial.print(" Value: ");
+        Serial.println(value);
+        //*/
+      return true;
+    }
+
+    void commit()
+    {
       EEPROM.commit();
+    }
+
+    bool getItem(const int& index, float& value)
+    {
+      if (data.start == -1 && isEmpty())
+        return false;
+
+      int idx = (data.start + index) % maxSize;
+      EEPROM.get(dataAllocation + idx * sizeof(value), value);
       return true;
     }
 
@@ -91,12 +155,12 @@ class DataSaverClass
     {
       Serial.println("Saved Data:");
       float value;
-      for (int i = 0; i < count(); i++)
+      for (int i = 0; i < data.size; i++)
       {
-        load(i, value);
+        int idx = (data.start + i) % maxSize;
+        EEPROM.get(dataAllocation + idx * sizeof(value), value);
         Serial.println(value);
       }
-      Serial.println();
     }
 };
 
@@ -105,4 +169,3 @@ DataSaverClass DataSaver;
 #endif
 
 #endif // DATASAVER_H
-

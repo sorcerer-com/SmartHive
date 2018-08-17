@@ -46,15 +46,16 @@ def AddData(sensorMAC):
 	global table
 	data = request.form if request.method == "POST" else request.args
 	if ("type" in data) and ("value" in data):
-		Logger.log("info", "Receiving data %s: %s" % (data["type"], data["value"]))
-		if testMode: # in test mode don't write data
-			return "OK"
-		# backup data
-		copyfile(Connection.DatabaseFile, Connection.DatabaseFile + ".bak")
-		
 		dt = datetime.now().replace(second=0, microsecond=0)
 		if "index" in data:
 			dt += timedelta(minutes=int(data["index"])*sleepTime)
+		
+		Logger.log("info", "Receiving data %s: %s for %s" % (data["type"], data["value"], dt))
+		if testMode: # in test mode don't write data
+			return "OK"
+			
+		# backup data
+		copyfile(Connection.DatabaseFile, Connection.DatabaseFile + ".bak")
 		
 		with Connection() as conn:
 			prevValue = conn.execute(
@@ -106,6 +107,7 @@ def setTestMode():
 	global testMode, sleepTime
 	testMode = not testMode
 	sleepTime = 2 if testMode else 30
+	Logger.log("info", "Set test mode: %s (%s s)" % (testMode, sleepTime))
 	return redirect("/")
 	
 

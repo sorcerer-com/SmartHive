@@ -46,8 +46,8 @@ void setup()
   readData();
 
   // Send data but not everytime
-  if (DataSaver.count() % (savesBeforeSend * dataCount) == 1 ||
-      DataSaver.full())
+  if (DataSaver.size() % (savesBeforeSend * dataCount) == 0 ||
+      DataSaver.isFull())
   {
     // Turn on the wifi again
     WiFi.forceSleepWake();
@@ -55,8 +55,8 @@ void setup()
     WiFi.mode(WIFI_STA);
 
     // Connect to WiFi and send data to server
-    if (connect() && sendData())
-      DataSaver.clear(); // if successful clear saves
+    if (connect())
+      sendData();
   }
 
   sleep();
@@ -110,15 +110,20 @@ void readData()
   Serial.println(weight);
 
   // Save Data
-  Serial.println("Saving data...");
-  if (DataSaver.count() == 0) // save default sleep time in first place
-    DataSaver.save(defaultSleepTime);
-  DataSaver.save(temp);
-  DataSaver.save(hum);
-  DataSaver.save(weight);
+  Serial.print("Saving data... ");
+  if (DataSaver.isInit())
+  {
+    DataSaver.enqueue(temp, false);
+    DataSaver.enqueue(hum, false);
+    DataSaver.enqueue(weight, false);
+    DataSaver.commit();
+    Serial.println();
+  }
+  else
+    Serial.println("failed");
 
   Serial.print("SavedData count: ");
-  Serial.println(DataSaver.count() / dataCount);
+  Serial.println(DataSaver.size() / dataCount);
   Serial.println();
 }
 
@@ -162,21 +167,28 @@ bool sendData()
 
   int idx = 0;
   float value = 0;
-  const int count = (DataSaver.count() - 1) / dataCount;
-  for (int i = 0; i < count; i++)
+  while (!DataSaver.isEmpty())
   {
-    idx = ((DataSaver.count() - 1) / dataCount) - i - 1;
+    idx = DataSaver.size() / dataCount - 1;
     Serial.println(String("- ") + idx + " index");
 
-    DataSaver.load(i * dataCount + 1, value);
-    result &= sendData(client, addDataURL, -idx, "Temperature", value);
-    DataSaver.load(i * dataCount + 2, value);
-    result &= sendData(client, addDataURL, -idx, "Humidity", value);
-    DataSaver.load(i * dataCount + 3, value);
-    result &= sendData(client, addDataURL, -idx, "Weight", value);
+    if (result) result &= DataSaver.getItem(0, value);
+    if (result) result &= sendData(client, addDataURL, -idx, "Temperature", value);
+
+    if (result) result &= DataSaver.getItem(1, value);
+    if (result) result &= sendData(client, addDataURL, -idx, "Humidity", value);
+
+    if (result) result &= DataSaver.getItem(2, value);
+    if (result) result &= sendData(client, addDataURL, -idx, "Weight", value);
 
     if (!result)
       break;
+
+    // dequeue the data whene all is already sent
+    DataSaver.dequeue(value, false);
+    DataSaver.dequeue(value, false);
+    DataSaver.dequeue(value, false);
+    DataSaver.commit();
     delay(100);
   }
 
@@ -224,21 +236,14 @@ void sleep()
     Serial.println(" seconds");
     if (status == 200)
     {
-      sleepTime = (uint64_t)content.toInt() * 1e6; // in seconds
-      if (DataSaver.count() == 0)
-        DataSaver.save((float)(sleepTime / 1e6));
+      sleepTime = (uint64_t)content.toInt() * 1e6; // in seconds to microseconds
+      DataSaver.setSleepTime((int)(sleepTime / 1e6));
     }
 
     WiFi.disconnect(true);
   }
-  else
-  {
-    float temp;
-    if (DataSaver.load(0, temp) && temp > 0)
-      sleepTime = (uint64_t)temp * 1e6; // in seconds
-    else if (DataSaver.count() == 0)
-      DataSaver.save((float)(sleepTime / 1e6));
-  }
+  if (DataSaver.getSleepTime() > 0)
+    sleepTime = (uint64_t)DataSaver.getSleepTime() * 1e6; // in seconds
 
   Serial.print("Sleep for ");
   Serial.print((int)(sleepTime / 1e6));
