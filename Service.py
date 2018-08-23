@@ -86,6 +86,16 @@ def AddData(sensorMAC):
 def GetSleepTime():
 	return str(sleepTime * 60) # to seconds
 	
+@app.route("/GetSoftwareVersion")
+def GetSoftwareVersion():
+	return str(1)
+	
+@app.route("/GetSoftware")
+def GetSoftware():
+	fileName = "bin/versions/sensor_v" + GetSoftwareVersion() + ".bin"
+	Logger.log("info", "Get Software: " + fileName)
+	return send_file(fileName, "application/octet-stream", True, cache_timeout=60)
+	
 @app.route("/restart")
 def restart():
 	USBHandler.deinit()
@@ -116,5 +126,5 @@ if __name__ == "__main__":
 	
 	USBHandler.init()
 	app.config['TEMPLATES_AUTO_RELOAD'] = True
-	app.run(debug=False, host="0.0.0.0")
+	app.run(debug=False, host="0.0.0.0", threaded=True)
 	USBHandler.deinit()

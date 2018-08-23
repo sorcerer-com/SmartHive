@@ -13,10 +13,31 @@ class DataSaverClass
     {
       int start;
       int size;
+      int version;
       int sleepTime; // in seconds
     } data;
 
   public:
+    void setVersion(const int& value) // in seconds
+    {
+      if (data.version == value)
+        return;
+
+      data.version = value;
+      EEPROM.put(0, data);
+      EEPROM.commit();
+
+      /*
+        Serial.print("DataSaver set version: ");
+        Serial.println(value);
+        //*/
+    }
+
+    inline int getVersion()
+    {
+      return data.version;
+    }
+
     void setSleepTime(const int& value) // in seconds
     {
       if (data.sleepTime == value)
@@ -27,12 +48,12 @@ class DataSaverClass
       EEPROM.commit();
 
       /*
-        Serial.print("DataSaver set sleep time:");
+        Serial.print("DataSaver set sleep time: ");
         Serial.println(value);
         //*/
     }
 
-    int getSleepTime()
+    inline int getSleepTime()
     {
       return data.sleepTime;
     }
@@ -43,6 +64,7 @@ class DataSaverClass
       EEPROM.begin(4096);
       data.start = 0;
       data.size = 0;
+      data.version = 0;
       data.sleepTime = 0;
 
       // if cannot read the EEPROM
@@ -136,7 +158,7 @@ class DataSaverClass
       return true;
     }
 
-    void commit()
+    inline void commit()
     {
       EEPROM.commit();
     }

@@ -1,5 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
 
 #include "src/DHT.h"
 #include "src/HX711.h"
@@ -56,7 +57,10 @@ void setup()
 
     // Connect to WiFi and send data to server
     if (connect())
+    {
+      update();
       sendData();
+    }
   }
 
   sleep();
@@ -155,6 +159,53 @@ bool connect()
   Serial.println(WiFi.localIP());
   Serial.println();
   return true;
+}
+
+void update()
+{
+  Serial.print("Receiving software version...");
+
+  HTTPClient client;
+  client.begin(String("http://") + serverAddress + "/GetSoftwareVersion");
+  int status = client.GET();
+  String content = client.getString();
+  client.end();
+
+  Serial.print(" ");
+  Serial.print(status);
+  Serial.print(" ver: ");
+  Serial.println(content);
+  if (status == 200)
+  {
+    int version = content.toInt();
+    if (version != DataSaver.getVersion())
+    {
+      // dequeue last values because after update the sensor will restart and collect new data
+      float temp;
+      DataSaver.dequeue(temp, false);
+      DataSaver.dequeue(temp, false);
+      DataSaver.dequeue(temp, false);
+      DataSaver.commit();
+    
+      DataSaver.setVersion(version);
+      Serial.print("Update software... ");
+
+      wdt_disable();
+      t_httpUpdate_return ret = ESPhttpUpdate.update(String("http://") + serverAddress + "/GetSoftware"); // IT DOESN'T WORK
+      switch (ret) {
+        case HTTP_UPDATE_FAILED:
+          Serial.printf("failed (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+          break;
+        case HTTP_UPDATE_NO_UPDATES:
+          Serial.println("none");
+          break;
+        case HTTP_UPDATE_OK:
+          Serial.println("successful");
+          break;
+      }
+    }
+  }
+  Serial.println();
 }
 
 bool sendData()
