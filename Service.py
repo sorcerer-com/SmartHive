@@ -13,7 +13,7 @@ logging.getLogger().info("")
 app = Flask(__name__, template_folder = "./")
 
 table = None
-dataThresholds = { "Temperature": 0.5, "Humidity": 5.0, "Weight": 100 }
+dataThresholds = { "Temperature": 0.5, "Humidity": 5.0, "Weight": 100, "Frequency": 10 }
 sleepTime = 30 # minutes
 testMode = False
 

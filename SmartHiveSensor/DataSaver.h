@@ -173,6 +173,13 @@ class DataSaverClass
       return true;
     }
 
+    void clear()
+    {
+      data.size = 0;
+      EEPROM.put(0, data);
+      EEPROM.commit();
+    }
+
     void print()
     {
       Serial.println("Saved Data:");

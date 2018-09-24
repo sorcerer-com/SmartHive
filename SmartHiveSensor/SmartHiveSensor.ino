@@ -4,15 +4,20 @@
 
 #include "src/DHT.h"
 #include "src/HX711.h"
+#include "src/arduinoFFT/arduinoFFT.h"
 #include "DataSaver.h"
+
+#define SOUND_SAMPLES 256             //Must be a power of 2
+#define SOUND_SAMPLING_FREQUENCY 1000 //Hz, must be less than 10000 due to ADC
 
 const char* ssid = "ARMBIAN";
 const char* password = "12345678";
 const char* serverAddress = "192.168.0.110:5000";
 
 const int ledPin = D4;
+const int micPin = A0;
 const int threshold = 10; // seconds to wait for operation
-const int dataCount = 3; // data variables count
+const int dataCount = 4; // data variables count
 const int savesBeforeSend = 4; // save 4 times before send
 const uint64_t defaultSleepTime = 15 * 60e6; // 15 minutes default deep sleep
 
@@ -21,8 +26,12 @@ const float scaleScale = -24; // unit scale of the scale
 
 DHT dht(D4, DHT22);
 HX711 scale(D2, D3);
+arduinoFFT FFT;
 
 unsigned long startTime = millis();
+
+double soundReal[SOUND_SAMPLES];
+double soundImag[SOUND_SAMPLES];
 
 void setup()
 {
@@ -80,9 +89,10 @@ void loop()
 
 void readData()
 {
-  float temp, hum, weight;
+  float temp, hum, weight, frequency;
 
   Serial.print("Reading data..");
+  // temperature and humidity
   int count = 0;
   do
   {
@@ -102,16 +112,35 @@ void readData()
   } while (isnan(temp) || isnan(hum));
   Serial.println();
 
+  // weight
   scale.set_offset(scaleOffset);
   scale.set_scale(scaleScale);
   weight = scale.get_units(10);
+
+  // frequency
+  const unsigned int sampling_period_us = round(1000000 * (1.0 / SOUND_SAMPLING_FREQUENCY));
+  unsigned long microseconds;
+  for (int i = 0; i < SOUND_SAMPLES; i++)
+  {
+    microseconds = micros();
+    soundReal[i] = analogRead(micPin);
+    soundImag[i] = 0;
+    while (abs(micros() - microseconds) < sampling_period_us) {
+    }
+  }
+  FFT.Windowing(soundReal, SOUND_SAMPLES, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
+  FFT.Compute(soundReal, soundImag, SOUND_SAMPLES, FFT_FORWARD);
+  FFT.ComplexToMagnitude(soundReal, soundImag, SOUND_SAMPLES);
+  frequency = FFT.MajorPeak(soundReal, SOUND_SAMPLES, SOUND_SAMPLING_FREQUENCY);
 
   Serial.print("Temperature: ");
   Serial.print(temp);
   Serial.print(", Humidity: ");
   Serial.print(hum);
   Serial.print(", Weight: ");
-  Serial.println(weight);
+  Serial.print(weight);
+  Serial.print(", Frequency: ");
+  Serial.println(frequency);
 
   // Save Data
   Serial.print("Saving data... ");
@@ -120,6 +149,7 @@ void readData()
     DataSaver.enqueue(temp, false);
     DataSaver.enqueue(hum, false);
     DataSaver.enqueue(weight, false);
+    DataSaver.enqueue(frequency, false);
     DataSaver.commit();
     Serial.println();
   }
@@ -186,7 +216,7 @@ void update()
       DataSaver.dequeue(temp, false);
       DataSaver.dequeue(temp, false);
       DataSaver.commit();
-    
+
       DataSaver.setVersion(version);
       Serial.print("Update software... ");
 
@@ -203,6 +233,7 @@ void update()
           Serial.println("successful");
           break;
       }
+      ESP.restart();
     }
   }
   Serial.println();
@@ -232,10 +263,14 @@ bool sendData()
     if (result) result &= DataSaver.getItem(2, value);
     if (result) result &= sendData(client, addDataURL, -idx, "Weight", value);
 
+    if (result) result &= DataSaver.getItem(3, value);
+    if (result) result &= sendData(client, addDataURL, -idx, "Frequency", value);
+
     if (!result)
       break;
 
     // dequeue the data whene all is already sent
+    DataSaver.dequeue(value, false);
     DataSaver.dequeue(value, false);
     DataSaver.dequeue(value, false);
     DataSaver.dequeue(value, false);
@@ -309,4 +344,3 @@ void sleep()
   delay(1);
   ESP.deepSleep(sleepTime, WAKE_RF_DISABLED);
 }
-

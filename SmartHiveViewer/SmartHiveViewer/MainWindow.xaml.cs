@@ -240,6 +240,8 @@ namespace SmartHiveViewer
                     return "Тегло";
                 case "Voltage":
                     return "Волтаж";
+                case "Frequency":
+                    return "Честота";
                 default:
                     return text;
             }
