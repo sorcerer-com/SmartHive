@@ -39,8 +39,8 @@ def index():
 			table[value[0]][value[1]][value[2]] = value[3] # time / (id / (type / value))
 	
 	return render_template("index.html", data=table, datetime=datetime.now().strftime("%Y-%m-%d %H:%M"), 
-		testMode=testMode)
-
+		testMode=testMode, logs=Logger.data)
+	
 @app.route("/AddData/<sensorMAC>", methods=["GET", "POST"])
 def AddData(sensorMAC):
 	global table
@@ -50,7 +50,7 @@ def AddData(sensorMAC):
 		if "index" in data:
 			dt += timedelta(minutes=int(data["index"])*sleepTime)
 		
-		Logger.log("info", "Receiving data %s: %s for %s" % (data["type"], data["value"], dt))
+		Logger.log("info", "Receiving data %15s: %10s for %s" % (data["type"], data["value"], dt))
 		if testMode: # in test mode don't write data
 			return "OK"
 			

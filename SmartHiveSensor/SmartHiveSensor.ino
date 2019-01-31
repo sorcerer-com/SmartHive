@@ -21,7 +21,7 @@ const int dataCount = 4; // data variables count
 const int savesBeforeSend = 4; // save 4 times before send
 const uint64_t defaultSleepTime = 15 * 60e6; // 15 minutes default deep sleep
 
-const long scaleOffset = 187000; // initial offset of the scale
+const long scaleOffset = 236000; // initial offset of the scale
 const float scaleScale = -24; // unit scale of the scale
 
 DHT dht(D4, DHT22);
@@ -33,6 +33,7 @@ unsigned long startTime = millis();
 double soundReal[SOUND_SAMPLES];
 double soundImag[SOUND_SAMPLES];
 
+//// WeMos D1 R2
 void setup()
 {
   // Setup
@@ -113,9 +114,11 @@ void readData()
   Serial.println();
 
   // weight
+  scale.power_up();
   scale.set_offset(scaleOffset);
   scale.set_scale(scaleScale);
   weight = scale.get_units(10);
+  scale.power_down();
 
   // frequency
   const unsigned int sampling_period_us = round(1000000 * (1.0 / SOUND_SAMPLING_FREQUENCY));
@@ -142,6 +145,17 @@ void readData()
   Serial.print(", Frequency: ");
   Serial.println(frequency);
 
+  // if data count is broken, clear the currupted data
+  if (DataSaver.size() % dataCount != 0)
+  {
+    Serial.print("Data size invalid: ");
+    Serial.print(DataSaver.size());
+    Serial.print(" expected to be multiple of ");
+    Serial.println(dataCount);
+    Serial.println("Clear data");
+    DataSaver.clear();
+  }
+  
   // Save Data
   Serial.print("Saving data... ");
   if (DataSaver.isInit())

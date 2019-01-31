@@ -51,6 +51,14 @@
 		{% endif %}
 		</button>
 		<button onclick="location.href = '/restart'">Restart</button>
+		<details>
+			<summary>Logs</summary>
+			<ul>
+			{% for log in logs|reverse %}
+				<li style="white-space: pre; font-family: monospace;">{{ log }}</li>
+			{% endfor %}
+			</ul>
+		</details>
 		
 		<center><h1>Smart Hive</h1></center>
 		
