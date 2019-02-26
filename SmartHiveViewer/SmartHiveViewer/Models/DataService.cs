@@ -7,7 +7,7 @@ namespace SmartHiveViewer.Models
 {
     public static class DataService
     {
-        public static List<DataClass> Data = new List<DataClass>();
+        private static List<DataClass> Data = new List<DataClass>();
         private static bool newData = false;
 
         public static bool ReadData()
@@ -79,12 +79,39 @@ namespace SmartHiveViewer.Models
         }
 
 
+        private static DateTime periodStart = DateTime.Now.AddMonths(-3);
+        public static DateTime PeriodStart
+        {
+            get => periodStart;
+            set
+            {
+                if (periodStart == value)
+                    return;
+
+                periodStart = value;
+                times = null;
+            }
+        }
+
         public static int SensorsCount => Data.GroupBy(d => d.SensorId).Count();
 
-        public static List<DateTime> Times => Data.Select(d => d.Timestamp).Distinct().OrderBy(t => t).ToList();
-
-        private static Dictionary<string, Dictionary<DateTime, double>> cache = 
-            new Dictionary<string, Dictionary<DateTime, double>>();
+        private static List<DateTime> times = null;
+        public static List<DateTime> Times
+        {
+            get
+            {
+                if (times == null)
+                {
+                    times = Data
+                        .Where(d => d.Timestamp > PeriodStart)
+                        .Select(d => d.Timestamp)
+                        .Distinct()
+                        .OrderBy(t => t)
+                        .ToList();
+                }
+                return times;
+            }
+        }
 
         public static List<string> GetTypes(int sensorId)
         {
@@ -95,6 +122,17 @@ namespace SmartHiveViewer.Models
                 .OrderBy(d => d)
                 .ToList();
         }
+
+        public static DateTime GetLastActivity(int sensorId)
+        {
+            return Data
+                .Where(d => d.SensorId == sensorId)
+                .First()
+                .LastActivity;
+        }
+
+        private static Dictionary<string, Dictionary<DateTime, double>> cache = 
+            new Dictionary<string, Dictionary<DateTime, double>>();
 
         public static SortedDictionary<DateTime, double> GetData(int sensorId, string type,
             int minIndex = 0, int count = int.MaxValue)
@@ -109,24 +147,26 @@ namespace SmartHiveViewer.Models
                     .ToDictionary(d => d.Timestamp, d => d.Value);
 
                 // fill gaps between values
-                foreach (var time in Times)
+                var keys = result.Keys.OrderBy(t => t).ToList();
+                int prevKeyIdx = 0;
+                var times = Data.Select(d => d.Timestamp).Distinct().OrderBy(t => t);
+                foreach (var time in times)
                 {
-                    if (!result.ContainsKey(time))
-                    {
-                        var prevValue = result
-                            .Where(kvp => kvp.Key < time)
-                            .OrderBy(kvp => kvp.Key)
-                            .Select(kvp => kvp.Value);
+                    if (result.ContainsKey(time))
+                        continue;
+                    
+                    while (prevKeyIdx < keys.Count - 1 && keys[prevKeyIdx] < time)
+                        prevKeyIdx++;
 
-                        if (prevValue.Count() > 0)
-                            result.Add(time, prevValue.Last());
-                        else
-                            result.Add(time, 0);
-                    }
+                    if (prevKeyIdx > 0)
+                        result.Add(time, result[keys[prevKeyIdx - 1]]);
+                    else
+                        result.Add(time, 0);
                 }
                 cache.Add(id, result);
             }
-            result = result.OrderBy(kvp => kvp.Key).Skip(minIndex).Take(count).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            result = result.Where(kvp => kvp.Key > PeriodStart).OrderBy(kvp => kvp.Key).Skip(minIndex).Take(count)
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             return new SortedDictionary<DateTime, double>(result);
         }

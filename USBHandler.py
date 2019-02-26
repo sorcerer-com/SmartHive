@@ -127,6 +127,10 @@ def cleanupDB():
 		Logger.log("info", "USBHandler: Cleanup database")
 		dt = datetime.now() - timedelta(days=cleanupInterval)
 		with Connection() as conn:
+			conn.execute(
+				"INSERT OR IGNORE INTO archive "
+				"SELECT * FROM data "
+				"WHERE datetime(DateTime) < datetime('%s')" % dt).fetchall()
 			conn.execute("DELETE FROM data WHERE datetime(DateTime) < datetime('%s')" % dt).fetchall()
 			conn.commit()
 	except Exception as e:

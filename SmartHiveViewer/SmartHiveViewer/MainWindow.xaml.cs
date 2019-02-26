@@ -19,6 +19,7 @@ namespace SmartHiveViewer
     {
         private int minIndex;
         private int countElements;
+        private int selectedFilter;
 
         public MainWindow()
         {
@@ -57,7 +58,7 @@ namespace SmartHiveViewer
             tabControl.Visibility = Visibility.Visible;
 
             minIndex = DataService.Times
-                .Where(t => t <= DataService.Times.Max().Subtract(TimeSpan.FromDays(7))).Count();
+                .Where(t => t <= DataService.Times.Last().Subtract(TimeSpan.FromDays(7))).Count();
             countElements = DataService.Times.Count - minIndex;
 
             InitializeControls();
@@ -91,14 +92,7 @@ namespace SmartHiveViewer
         {
             var stackPanel = new StackPanel { Orientation = Orientation.Vertical };
 
-            var textBlock2 = new TextBlock()
-            {
-                Text = "Последно активен: " + DataService.Data.Where(d => d.SensorId == sensorId).First().LastActivity,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Margin = new Thickness(10, 5, 10, 10),
-                FontSize = 16
-            };
-            stackPanel.Children.Add(textBlock2);
+            stackPanel.Children.Add(GetTopInfo(sensorId));
 
             var types = DataService.GetTypes(sensorId);
             foreach (var type in types)
@@ -116,6 +110,55 @@ namespace SmartHiveViewer
             }
 
             return new ScrollViewer { Content = stackPanel };
+        }
+
+        private FrameworkElement GetTopInfo(int sensorId)
+        {
+            Grid topGrid = new Grid();
+            TextBlock lastActiveTextBlock = new TextBlock()
+            {
+                Text = "Последно активен: " + DataService.GetLastActivity(sensorId),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(10, 5, 10, 10),
+                FontSize = 16
+            };
+            topGrid.Children.Add(lastActiveTextBlock);
+
+            ComboBox periodComboBox = new ComboBox()
+            {
+                Items = { "3 месеца", "6 месеца", "12 месеца", "Всички" },
+                SelectedIndex = selectedFilter,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(10, 5, 10, 10),
+                FontSize = 16
+            };
+            periodComboBox.SelectionChanged += (s, e) =>
+            {
+                selectedFilter = periodComboBox.SelectedIndex;
+                switch (periodComboBox.SelectedIndex)
+                {
+                    case 0:
+                        DataService.PeriodStart = DateTime.Now.AddMonths(-3);
+                        break;
+                    case 1:
+                        DataService.PeriodStart = DateTime.Now.AddMonths(-6);
+                        break;
+                    case 2:
+                        DataService.PeriodStart = DateTime.Now.AddMonths(-12);
+                        break;
+                    case 3:
+                        DataService.PeriodStart = DateTime.Now.AddYears(-100); // all logs
+                        break;
+                }
+
+                minIndex = DataService.Times
+                    .Where(t => t <= DataService.Times.Last().Subtract(TimeSpan.FromDays(7))).Count();
+                countElements = DataService.Times.Count - minIndex;
+
+                InitializeControls();
+            };
+            topGrid.Children.Add(periodComboBox);
+            return topGrid;
         }
 
         private Chart GetChart(int sensorId, string type)
@@ -161,13 +204,13 @@ namespace SmartHiveViewer
                 if (e.LeftButton == MouseButtonState.Pressed) // week
                 {
                     minIndex = DataService.Times
-                        .Where(t => t <= DataService.Times.Max().Subtract(TimeSpan.FromDays(7))).Count();
+                        .Where(t => t <= DataService.Times.Last().Subtract(TimeSpan.FromDays(7))).Count();
                     countElements = DataService.Times.Count - minIndex;
                 }
                 else if (e.RightButton == MouseButtonState.Pressed) //day
                 {
                     minIndex = DataService.Times
-                        .Where(t => t <= DataService.Times.Max().Subtract(TimeSpan.FromDays(1))).Count();
+                        .Where(t => t <= DataService.Times.Last().Subtract(TimeSpan.FromDays(1))).Count();
                     countElements = DataService.Times.Count - minIndex;
                 }
                 else
