@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from threading import Thread, Timer
-import os, subprocess, thread
-from shutil import copyfile, copy
+import os, subprocess, thread, shutil
 from datetime import datetime, timedelta
 
 from libs.Logger import *
@@ -44,7 +43,7 @@ def run():
 				if os.path.isdir(os.path.join(baseDir, path)) and path == "SmartHive":
 					Logger.log("info", "USBHandler: Flash detected")
 					fullPath = os.path.join(baseDir, path)
-					exportDB(os.path.join(fullPath, "data.csv"))
+					exportDB(fullPath, "data.csv")
 					copyfiles(fullPath)
 					execute(os.path.join(fullPath, "exec.py"))
 					update(os.path.join(fullPath, "update"))
@@ -55,7 +54,7 @@ def run():
 			checked = False
 		time.sleep(delay)
 		
-def exportDB(filePath):
+def exportDB(dstPath, fileName):
 	try:
 		Logger.log("info", "USBHandler: Export database")
 		with Connection() as conn:
@@ -64,10 +63,13 @@ def exportDB(filePath):
 				"JOIN MACs mac ON SensorMAC = MAC "
 				"ORDER BY datetime(DateTime)").fetchall()
 		
+		srcPath = os.path.dirname(Connection.DatabaseFile)
+		filePath = os.path.join(srcPath, fileName)
 		with open(filePath, "w") as file:
 			for value in values:
 				line = ",".join([str(v) for v in value])
 				file.write(line + "\n")
+		shutil.move(filePath, os.path.join(dstPath, fileName))
 	except Exception as e:
 		Logger.log("error", "USBHandler: Exception handled")
 		Logger.log("exception", str(e))
@@ -80,11 +82,18 @@ def copyfiles(dstPath):
 			return
 		Logger.log("info", "USBHandler: Backup data")
 
-		for fileName in files:
-			filePath = os.path.join(srcPath, fileName)
-			if os.path.isfile(filePath) and os.path.splitext(fileName)[1] != ".bak":
-				Logger.log("info", "USBHandler: - Copying " + fileName)
-				copyfile(filePath, os.path.join(dstPath, fileName))
+		if "zip" in shutil._ARCHIVE_FORMATS:
+			shutil.make_archive(os.path.join("/tmp", "backup"), "zip", base_dir=srcPath, logger=logging.root)
+			shutil.move(os.path.join("/tmp", "backup.zip"), os.path.join(dstPath, "backup.zip"))
+		elif "gztar" in shutil._ARCHIVE_FORMATS:
+			shutil.make_archive(os.path.join("/tmp", "backup"), "gztar", base_dir=srcPath, logger=logging.root)
+			shutil.move(os.path.join("/tmp", "backup.gztar"), os.path.join(dstPath, "backup.gztar"))
+		else:
+			for fileName in files:
+				filePath = os.path.join(srcPath, fileName)
+				if os.path.isfile(filePath) and os.path.splitext(fileName)[1] != ".bak":
+					Logger.log("info", "USBHandler: - Copying " + fileName)
+					shutil.copyfile(filePath, os.path.join(dstPath, fileName))
 	except Exception as e:
 		Logger.log("error", "USBHandler: Exception handled")
 		Logger.log("exception", str(e))
@@ -114,7 +123,7 @@ def update(srcPath):
 			filePath = os.path.join(srcPath, fileName)
 			if (os.path.isfile(filePath)):
 				Logger.log("info", "USBHandler: - Copying " + fileName)
-				copy(filePath, "./")
+				shutil.copy(filePath, "./")
 				os.remove(filePath)
 		
 		thread.interrupt_main()
