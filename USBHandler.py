@@ -69,6 +69,7 @@ def exportDB(dstPath, fileName):
 			for value in values:
 				line = ",".join([str(v) for v in value])
 				file.write(line + "\n")
+		Logger.log("debug", "USBHandler: Export database - move")
 		shutil.move(filePath, os.path.join(dstPath, fileName))
 	except Exception as e:
 		Logger.log("error", "USBHandler: Exception handled")
@@ -76,22 +77,30 @@ def exportDB(dstPath, fileName):
 			
 def copyfiles(dstPath):
 	try:
-		srcPath = os.path.dirname(Connection.DatabaseFile)
-		files = os.listdir(srcPath)
-		if len(files) == 0:
-			return
 		Logger.log("info", "USBHandler: Backup data")
-
+		srcPath = os.path.join(os.path.dirname(Connection.DatabaseFile), "usb")
+		if not os.path.exists(srcPath):
+			os.makedirs(srcPath)
+		Logger.log("debug", "USBHandler: Backup data - copy to sub")
+		shutil.copyfile(os.path.join(srcPath, "..", "data.db"), os.path.join(srcPath, "data.db"))
+		shutil.copyfile(os.path.join(srcPath, "..", "log.log"), os.path.join(srcPath, "log.log"))
+		shutil.copyfile(os.path.join(srcPath, "..", "log.log.bak"), os.path.join(srcPath, "log.log.bak"))
+		
 		if "zip" in shutil._ARCHIVE_FORMATS:
+			Logger.log("debug", "USBHandler: Backup data - archive")
 			shutil.make_archive(os.path.join("/tmp", "backup"), "zip", base_dir=srcPath, logger=logging.root)
+			Logger.log("debug", "USBHandler: Backup data - move")
 			shutil.move(os.path.join("/tmp", "backup.zip"), os.path.join(dstPath, "backup.zip"))
 		elif "gztar" in shutil._ARCHIVE_FORMATS:
+			Logger.log("debug", "USBHandler: Backup data - archive")
 			shutil.make_archive(os.path.join("/tmp", "backup"), "gztar", base_dir=srcPath, logger=logging.root)
+			Logger.log("debug", "USBHandler: Backup data - move")
 			shutil.move(os.path.join("/tmp", "backup.gztar"), os.path.join(dstPath, "backup.gztar"))
 		else:
+			files = os.listdir(srcPath)
 			for fileName in files:
 				filePath = os.path.join(srcPath, fileName)
-				if os.path.isfile(filePath) and os.path.splitext(fileName)[1] != ".bak":
+				if os.path.isfile(filePath):
 					Logger.log("info", "USBHandler: - Copying " + fileName)
 					shutil.copyfile(filePath, os.path.join(dstPath, fileName))
 	except Exception as e:
