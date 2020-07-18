@@ -50,10 +50,19 @@ void HX711::set_gain(byte gain) {
 
 long HX711::read() {
 	// wait for the chip to become ready
+	// use for as timeout (to prevent blocking)
+	for (int i = 0; i < 100000; i++) {
+		if (is_ready()) {
+			break;
+		}
+		yield();
+	}
+	/*
 	while (!is_ready()) {
 		// Will do nothing on Arduino but prevent resets of ESP8266 (Watchdog Issue)
 		yield();
 	}
+	*/
 
 	unsigned long value = 0;
 	uint8_t data[3] = { 0 };
