@@ -207,6 +207,7 @@ bool connect()
 
 void update()
 {
+  return; // TODO update triggers the hardware watchdog
   Serial.print("Receiving software version...");
 
   HTTPClient client;
@@ -226,9 +227,8 @@ void update()
     {
       // dequeue last values because after update the sensor will restart and collect new data
       float temp;
-      DataSaver.dequeue(temp, false);
-      DataSaver.dequeue(temp, false);
-      DataSaver.dequeue(temp, false);
+      for (int i = 0; i < dataCount; i++)
+        DataSaver.dequeue(temp, false);
       DataSaver.commit();
 
       DataSaver.setVersion(version);
@@ -356,5 +356,5 @@ void sleep()
   Serial.println();
 
   delay(1);
-  ESP.deepSleep(sleepTime, WAKE_RF_DISABLED);
+  ESP.deepSleep(sleepTime);
 }

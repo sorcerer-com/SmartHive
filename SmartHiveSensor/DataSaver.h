@@ -77,6 +77,16 @@ class DataSaverClass
       // if the start and size are not empty
       if (EEPROM.read(0) != 255 && EEPROM.read(1) != 255)
         EEPROM.get(0, data);
+
+      Serial.print("DataSaver init - ");
+      Serial.print("start: ");
+      Serial.print(data.start);
+      Serial.print(", size: ");
+      Serial.print(data.size);
+      Serial.print(", version: ");
+      Serial.print(data.version);
+      Serial.print(", sleepTime: ");
+      Serial.println(data.sleepTime);
     }
 
     inline int size()
